@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toy ECC: private key to public key</title>
+<style>
+:root{--bg:#f4f5f7;--panel:#fff;--ink:#1d2433;--mute:#5b6577;--line:#d5d9e0;--g:#1e8e5a;--r:#c8372d;--b:#2b5fb4}
+*{box-sizing:border-box}
+body{font-family:Georgia,"Times New Roman",serif;margin:0;padding:20px;background:var(--bg);color:var(--ink);line-height:1.5}
+h1{font-size:1.5rem;margin:0 0 4px}
+h2{font-size:1.05rem;margin:0 0 8px}
+.sub{color:var(--mute);margin:0 0 16px}
+.bar{display:flex;flex-wrap:wrap;gap:14px;align-items:end;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:16px}
+label{display:flex;flex-direction:column;font-size:.85rem;color:var(--mute);gap:3px}
+input,select,button{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink)}
+button{background:var(--ink);color:#fff;cursor:pointer;border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--b);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;min-width:0}
+canvas{max-width:100%;height:auto;border:1px solid var(--line)}
+pre{font-family:Consolas,Menlo,monospace;font-size:.82rem;background:#fafbfc;border:1px solid var(--line);padding:10px;margin:8px 0 0;height:260px;overflow:auto;white-space:pre-wrap}
+pre.tall{height:auto;max-height:480px}
+.key{font-size:1.1rem;margin:8px 0 0}
+.key b{color:var(--r)}
+.legend span{display:inline-block;width:12px;height:12px;margin:0 4px 0 12px;vertical-align:-1px}
+.report{grid-column:1/-1}
+.report h3{font-size:1rem;margin:16px 0 4px}
+.report p,.report li{max-width:78ch}
+.report code{font-family:Consolas,Menlo,monospace;font-size:.9em}
+</style>
+</head>
+<body>
+
+<h1>Toy ECC: private key to public key</h1>
+<p class="sub">Curve y² = x³ + 7 (mod 17). Q = kG computed with point addition, a slow-motion animation and statistics.</p>
+
+<div class="bar">
+  <label>Base point G
+    <select id="gSel"></select>
+  </label>
+  <label>Private key k
+    <input id="kIn" type="number" min="1" max="1000" value="6" style="width:90px">
+  </label>
+  <label>Animation pause (ms)
+    <input id="speed" type="number" min="100" max="3000" step="100" value="1200" style="width:110px">
+  </label>
+  <button id="run">Compute and animate</button>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Animation on the toy curve (points mod 17)</h2>
+    <canvas id="cv" width="620" height="620"></canvas>
+    <p class="key" id="pub"></p>
+  </div>
+  <div class="panel">
+    <h2>The real curve y² = x³ + 7 (intuition)</h2>
+    <canvas id="real" width="620" height="500"></canvas>
+    <p class="sub" style="margin:8px 0 0">Over the real numbers the curve is continuous. Chord/tangent rule: draw the tangent at P, take the third intersection, reflect it across the x-axis: that is 2P. Modulo 17 the same formulas apply, but only isolated points remain (see the animation panel). Here P = (1, √8), for illustration only.</p>
+  </div>
+  <div class="panel">
+    <h2>Calculation log</h2>
+    <pre id="log"></pre>
+    <h2 style="margin-top:14px">Fast method (double-and-add)</h2>
+    <pre id="fast"></pre>
+  </div>
+  <div class="panel">
+    <h2>Frequency of x and y (k = 1 … order−1)</h2>
+    <p class="legend"><span style="background:var(--b)"></span>x<span style="background:var(--r)"></span>y</p>
+    <canvas id="hist" width="620" height="300"></canvas>
+  </div>
+  <div class="panel">
+    <h2>Computed statistics</h2>
+    <pre id="stats" class="tall"></pre>
+  </div>
+  <div class="panel report">
+    <h2>Report: statistical exploration and discussion</h2>
+
+    <h3>1. What the program does</h3>
+    <p>The program takes the toy curve y² = x³ + 7 (mod 17), a base point G and a private key k, and computes the public key Q = kG by repeated elliptic-curve point addition. With G = (1,5) and k = 6 the sequence is 1G = (1,5), 2G = (2,10), 3G = (5,9), 4G = (12,1), 5G = (12,16), 6G = (5,8), so the toy public key is Q = (5,8). A double-and-add routine computes the same result with about log₂(k) doublings and additions instead of k additions, and the program checks that both methods agree. In Ethereum the same idea is used on secp256k1 with a 256-bit private key.</p>
+
+    <h3>2. What the experiments show</h3>
+    <ul>
+      <li><b>Small order.</b> G = (1,5) has order 9, so 9G is the point at infinity and kG = (k mod 9)G. Only 8 distinct points appear, however large k is. The frequency histograms therefore count each point equally often and say very little about uniformity.</li>
+      <li><b>Distribution of x and y.</b> Only values that appear as coordinates of curve points can occur, so the histograms are irregular by construction. Over this tiny sample, "apparently uniform" or "not uniform" is not a meaningful conclusion.</li>
+      <li><b>Bits.</b> Coordinates are below 17, so 5 bits suffice and the top bit is 1 only for the value 16. Bit frequencies cannot be 50% for that bit, which is a property of the small field, not of the function.</li>
+      <li><b>Correlation between k and the output.</b> The Pearson coefficients between k and x or y are computed from the data. For k = 1…8 the sample is tiny, so the values are weak evidence either way.</li>
+      <li><b>Avalanche-like behaviour.</b> The mean number of bits changed between kG and (k+1)G is compared with 2.5, the expected value for two random 5-bit numbers. Even if the result looks close, it comes from a very small sample and is not a design property.</li>
+      <li><b>Other base points.</b> The menu lets you choose any curve point as G. Orders differ, so the number of reachable points changes, but the same conclusions hold.</li>
+    </ul>
+
+    <h3>3. Which properties matter for a cryptographic one-way function</h3>
+    <ul>
+      <li><b>Determinism:</b> the same k and G always give the same Q.</li>
+      <li><b>Efficient forward computation:</b> Q = kG takes about log₂(k) group operations with double-and-add.</li>
+      <li><b>Hard inversion:</b> recovering k from Q is the Elliptic Curve Discrete Logarithm Problem (ECDLP). Here it is trivial, since one tries at most 9 values. On secp256k1 the group order is about 2²⁵⁶, and no known classical algorithm solves it in feasible time.</li>
+      <li><b>Large group order:</b> this is what the toy example lacks and why it offers no security.</li>
+    </ul>
+
+    <h3>4. Which properties are specific to cryptographic hash functions</h3>
+    <ul>
+      <li><b>Avalanche effect:</b> flipping one input bit should flip about half of the output bits. kG is not designed for this.</li>
+      <li><b>Collision resistance and second-preimage resistance:</b> a hash must make it hard to find two inputs with the same output. For kG with k reduced modulo the order, distinct k values give distinct points, so there are no collisions in that range. The notion belongs to hashes, which compress arbitrary-length inputs into a fixed length.</li>
+      <li><b>Fixed-length, uniformly looking output for arbitrary input:</b> a hash accepts messages of any length. Scalar multiplication takes a number k and returns a point of a specific group.</li>
+      <li><b>No algebraic structure:</b> a good hash has none that can be exploited.</li>
+    </ul>
+
+    <h3>5. Why kG is not a hash function</h3>
+    <p>The map k ↦ kG is a group homomorphism: (a+b)G = aG + bG. The program verifies this on an example. This structure is what makes public-key cryptography possible, for example in key exchange and signatures, but it is the opposite of what a hash function wants. A hash function is built so that no relation between inputs shows up between outputs. Scalar multiplication is therefore a one-way function whose hardness rests on a number-theoretic problem (ECDLP), while hash functions rely on diffusion and confusion and on empirical cryptanalysis. They share one-wayness, but not the other properties listed in section 4.</p>
+
+    <h3>6. Conclusion</h3>
+    <p>The toy example illustrates the mechanics of Q = kG and the geometric meaning of point addition. It does not support real security or statistical claims, because the group is far too small. Statistical tests such as uniformity, bit balance and avalanche are meaningful for hash functions and pseudorandom generators. For an elliptic-curve one-way function the relevant property is the computational hardness of the ECDLP in a group of large prime order.</p>
+  </div>
+</div>
+
+<script>
+// ---------- Parametri della curva ----------
+const P = 17, A = 0, B = 7;
+const mod = (n, p = P) => ((n % p) + p) % p;
+const inv = a => { a = mod(a); for (let i = 1; i < P; i++) if (mod(a * i) === 1) return i; throw new Error("inverso non trovato"); };
+const txt = p => p === null ? "∞" : `(${p.x},${p.y})`;
+
+// ---------- Addizione di punti ----------
+function add(p, q) {
+  if (p === null) return q;
+  if (q === null) return p;
+  if (p.x === q.x && mod(p.y + q.y) === 0) return null;      // P + (-P) = ∞
+  let l;
+  if (p.x === q.x && p.y === q.y) l = mod(mod(3 * p.x * p.x + A) * inv(2 * p.y));  // raddoppio
+  else l = mod(mod(q.y - p.y) * inv(q.x - p.x));                                   // somma
+  const x = mod(l * l - p.x - q.x);
+  return { x, y: mod(l * (p.x - x) - p.y) };
+}
+
+// Metodo naive: k addizioni
+function mulNaive(k, G) { let r = null; for (let i = 0; i < k; i++) r = add(r, G); return r; }
+
+// Metodo veloce: double-and-add (restituisce anche i passi)
+function mulFast(k, G, steps) {
+  let r = null, a = G, i = 0;
+  while (k > 0) {
+    if (k & 1) { r = add(r, a); if (steps) steps.push(`bit ${i} = 1: R = R + ${txt(a)} → ${txt(r)}`); }
+    else if (steps) steps.push(`bit ${i} = 0: R unchanged = ${txt(r)}`);
+    a = add(a, a); k >>= 1; i++;
+    if (steps && k > 0) steps.push(`   doubling: ${2 ** i}G = ${txt(a)}`);
+  }
+  return r;
+}
+
+// ---------- Curve points and order ----------
+const curvePoints = [];
+for (let x = 0; x < P; x++) for (let y = 0; y < P; y++)
+  if (mod(y * y) === mod(x * x * x + B)) curvePoints.push({ x, y });
+
+function order(G) { let r = G, n = 1; while (r !== null) { r = add(r, G); n++; } return n; }
+
+const gSel = document.getElementById("gSel");
+curvePoints.forEach((p, i) => {
+  const o = document.createElement("option");
+  o.value = i; o.textContent = `${txt(p)}  (order ${order(p)})`;
+  if (p.x === 1 && p.y === 5) o.selected = true;
+  gSel.appendChild(o);
+});
+
+// ---------- Canvas curva ----------
+const cv = document.getElementById("cv"), c = cv.getContext("2d");
+const cell = 34, mg = 40;
+const sx = x => mg + x * cell, sy = y => cv.height - mg - y * cell;
+
+function base(G) {
+  c.clearRect(0, 0, cv.width, cv.height);
+  c.strokeStyle = "#e3e6ec"; c.lineWidth = 1; c.fillStyle = "#5b6577"; c.font = "12px sans-serif";
+  for (let i = 0; i < P; i++) {
+    c.beginPath(); c.moveTo(sx(i), sy(0)); c.lineTo(sx(i), sy(P - 1)); c.stroke();
+    c.beginPath(); c.moveTo(sx(0), sy(i)); c.lineTo(sx(P - 1), sy(i)); c.stroke();
+    c.fillText(i, sx(i) - 4, sy(0) + 20); c.fillText(i, sx(0) - 24, sy(i) + 4);
+  }
+  c.fillStyle = "#3a4256";
+  for (const p of curvePoints) { c.beginPath(); c.arc(sx(p.x), sy(p.y), 4, 0, 7); c.fill(); }
+  c.beginPath(); c.arc(sx(G.x), sy(G.y), 11, 0, 7);
+  c.lineWidth = 3; c.strokeStyle = "#1e8e5a"; c.stroke();
+  c.fillStyle = "#1e8e5a"; c.font = "bold 13px sans-serif"; c.fillText("G", sx(G.x) + 13, sy(G.y) - 11);
+}
+
+function mark(p, label, final) {
+  if (p === null) return;
+  c.beginPath(); c.arc(sx(p.x), sy(p.y), final ? 7 : 5, 0, 7);
+  c.fillStyle = "#c8372d"; c.fill();
+  c.font = "bold 12px sans-serif"; c.fillText(label, sx(p.x) + 9, sy(p.y) + 16);
+}
+
+// ---------- Esecuzione ----------
+const logEl = document.getElementById("log"), fastEl = document.getElementById("fast");
+const pubEl = document.getElementById("pub");
+let timer = null;
+
+function start() {
+  clearTimeout(timer);
+  const G = curvePoints[+gSel.value];
+  const k = Math.max(1, Math.min(1000, parseInt(document.getElementById("kIn").value) || 1));
+  const delay = Math.max(100, parseInt(document.getElementById("speed").value) || 1200);
+  const n = order(G);
+
+  logEl.textContent = `G = ${txt(G)}, order n = ${n}, k = ${k}\n`;
+  pubEl.textContent = "";
+  base(G);
+
+  // Metodo veloce + verifica
+  const st = [`k = ${k} in binary: ${k.toString(2)}`];
+  const qf = mulFast(k, G, st);
+  st.push(`Result: ${txt(qf)}`);
+  fastEl.textContent = st.join("\n");
+
+  // Animazione: 1G, 2G, ..., kG (il punto precedente resta come traccia)
+  let cur = null, i = 0;
+  function step() {
+    i++;
+    cur = add(cur, G);
+    logEl.textContent += `${i}G = ${txt(cur)}\n`;
+    logEl.scrollTop = logEl.scrollHeight;
+    base(G);
+    for (const p of trail) mark(p.pt, p.l, false);
+    trail.push({ pt: cur, l: i + "G" });
+    mark(cur, i + "G", true);
+    if (i < k) { timer = setTimeout(step, delay); return; }
+    const ok = JSON.stringify(cur) === JSON.stringify(qf);
+    logEl.textContent += `\nTOY PUBLIC KEY: Q = ${k}G = ${txt(cur)}\nCheck with double-and-add: ${ok ? "OK, same result" : "ERROR"}\n`;
+    logEl.scrollTop = logEl.scrollHeight;
+    pubEl.innerHTML = `Toy public key: Q = ${k}G = <b>${txt(cur)}</b>` + (k % n === 0 ? " (point at infinity: k is a multiple of the order)" : "");
+  }
+  const trail = [];
+  timer = setTimeout(step, delay / 2);
+  stats(G, n);
+}
+
+// ---------- Statistiche ----------
+function ones(v) { let c = 0; while (v) { c += v & 1; v >>= 1; } return c; }
+const ham = (a, b) => ones(a ^ b);
+function pearson(a, b) {
+  const m = a.length, ma = a.reduce((s, v) => s + v, 0) / m, mb = b.reduce((s, v) => s + v, 0) / m;
+  let sab = 0, sa = 0, sb = 0;
+  for (let i = 0; i < m; i++) { sab += (a[i] - ma) * (b[i] - mb); sa += (a[i] - ma) ** 2; sb += (b[i] - mb) ** 2; }
+  return sa && sb ? sab / Math.sqrt(sa * sb) : NaN;
+}
+
+function stats(G, n) {
+  const ks = [], pts = [];
+  for (let k = 1; k < n; k++) { ks.push(k); pts.push(mulFast(k, G)); }
+  const xf = Array(P).fill(0), yf = Array(P).fill(0);
+  pts.forEach(p => { xf[p.x]++; yf[p.y]++; });
+  hist(xf, yf);
+
+  const distinct = new Set(pts.map(p => p.x + "," + p.y)).size;
+  const bitsX = [0, 0, 0, 0, 0], bitsY = [0, 0, 0, 0, 0];
+  pts.forEach(p => { for (let b = 0; b < 5; b++) { bitsX[b] += (p.x >> b) & 1; bitsY[b] += (p.y >> b) & 1; } });
+  const pct = a => a.map(v => (100 * v / pts.length).toFixed(0) + "%").join(" ");
+
+  // Avalanche: Hamming tra kG e (k+1)G
+  let hs = 0, hc = 0;
+  for (let i = 0; i + 1 < pts.length; i++) { hs += ham(pts[i].x, pts[i + 1].x) + ham(pts[i].y, pts[i + 1].y); hc += 2; }
+  const av = hc ? hs / hc : NaN;
+
+  // Struttura algebrica: (a+b)G = aG + bG
+  const a = 2 % n || 1, b = 3 % n || 1;
+  const lhs = mulFast(a + b, G), rhs = add(mulFast(a, G), mulFast(b, G));
+  const rx = pearson(ks, pts.map(p => p.x)), ry = pearson(ks, pts.map(p => p.y));
+  const nz = xf.filter(v => v).length, nzy = yf.filter(v => v).length;
+
+  let s = "";
+  s += `G = ${txt(G)}, order n = ${n}\n`;
+  s += `Points on the curve (excluding infinity): ${curvePoints.length}; whole group: ${curvePoints.length + 1}\n`;
+  s += `Distinct points generated by G: ${distinct} (k = 1 … ${n - 1})\n`;
+  s += `Periodicity: kG = (k mod ${n})G, so any k > ${n - 1} repeats the same points.\n\n`;
+  s += `x values used: ${nz}/${P}; y values used: ${nzy}/${P}\n`;
+  s += `Max/min frequency of x: ${Math.max(...xf)}/${Math.min(...xf)}\n`;
+  s += `Max/min frequency of y: ${Math.max(...yf)}/${Math.min(...yf)}\n\n`;
+  s += `Bits set to 1 in x (bit0 … bit4): ${pct(bitsX)}\n`;
+  s += `Bits set to 1 in y (bit0 … bit4): ${pct(bitsY)}\n`;
+  s += `(~50% expected if uniform; values are < 17, so bit4 is 1 only for 16)\n\n`;
+  s += `Pearson correlation k–x: ${rx.toFixed(3)}\n`;
+  s += `Pearson correlation k–y: ${ry.toFixed(3)}\n\n`;
+  s += `Bits changed between kG and (k+1)G: mean ${av.toFixed(2)} per coordinate (5 bits)\n`;
+  s += `(two random 5-bit values would differ by 2.5 bits on average)\n\n`;
+  s += `Structure test: ${a + b}G = ${txt(lhs)} and ${a}G + ${b}G = ${txt(rhs)} → ${JSON.stringify(lhs) === JSON.stringify(rhs) ? "equal" : "different"}\n\n`;
+  s += `Discussion\n`;
+  s += `- With order ${n}, the ECDLP is broken by trying ${n} values. On secp256k1 the order is ~2^256.\n`;
+  s += `- The output looks irregular but is structured: (a+b)G = aG + bG. A hash function has no such property.\n`;
+  s += `- Meaningful for a one-way function: determinism, efficient forward computation, hard inversion.\n`;
+  s += `- Hash-specific: avalanche effect, collision resistance, fixed-length output for any input.\n`;
+  s += `- kG is not a hash: there is no designed avalanche, and this sample is far too small for real statistical conclusions.\n`;
+  document.getElementById("stats").textContent = s;
+}
+
+function hist(xf, yf) {
+  const h = document.getElementById("hist"), g = h.getContext("2d");
+  g.clearRect(0, 0, h.width, h.height);
+  const max = Math.max(...xf, ...yf, 1), left = 30, bw = 16, gap = 34;
+  g.strokeStyle = "#999"; g.beginPath(); g.moveTo(left - 5, 250); g.lineTo(h.width - 5, 250); g.stroke();
+  g.font = "11px sans-serif"; g.fillStyle = "#5b6577";
+  g.fillText("max freq. = " + max, 4, 14);
+  for (let v = 0; v < P; v++) {
+    const x0 = left + v * gap;
+    g.fillStyle = "#2b5fb4"; g.fillRect(x0, 250 - 220 * xf[v] / max, bw / 2 + 2, 220 * xf[v] / max);
+    g.fillStyle = "#c8372d"; g.fillRect(x0 + bw / 2 + 2, 250 - 220 * yf[v] / max, bw / 2 + 2, 220 * yf[v] / max);
+    g.fillStyle = "#1d2433"; g.fillText(v, x0 + 5, 268);
+  }
+  g.fillStyle = "#5b6577"; g.fillText("coordinate value", left, 290);
+}
+
+
+// ---------- Real curve (intuition) ----------
+(function drawReal() {
+  const cn = document.getElementById("real"), g = cn.getContext("2d");
+  const S = 70, ox = 2.3 * S, oy = cn.height / 2;
+  const X = x => ox + x * S, Y = y => oy - y * S;
+  g.strokeStyle = "#e3e6ec"; g.lineWidth = 1; g.fillStyle = "#5b6577"; g.font = "11px sans-serif";
+  for (let x = -2; x <= 6; x++) { g.beginPath(); g.moveTo(X(x), 0); g.lineTo(X(x), cn.height); g.stroke(); g.fillText(x, X(x) + 2, oy + 12); }
+  for (let y = -3; y <= 3; y++) { g.beginPath(); g.moveTo(0, Y(y)); g.lineTo(cn.width, Y(y)); g.stroke(); if (y) g.fillText(y, X(0) + 3, Y(y) - 2); }
+  g.strokeStyle = "#999"; g.beginPath(); g.moveTo(0, oy); g.lineTo(cn.width, oy); g.moveTo(X(0), 0); g.lineTo(X(0), cn.height); g.stroke();
+  g.strokeStyle = "#2b5fb4"; g.lineWidth = 2.5; g.beginPath();
+  const x0 = Math.cbrt(-7);
+  g.moveTo(X(x0), Y(0));
+  for (let x = x0; x <= 6.6; x += 0.01) g.lineTo(X(x), Y(Math.sqrt(x ** 3 + 7)));
+  g.moveTo(X(x0), Y(0));
+  for (let x = x0; x <= 6.6; x += 0.01) g.lineTo(X(x), Y(-Math.sqrt(x ** 3 + 7)));
+  g.stroke();
+  const px = 1, py = Math.sqrt(8), l = 3 * px * px / (2 * py);
+  const x3 = l * l - 2 * px, y3 = l * (px - x3) - py;
+  g.strokeStyle = "#1e8e5a"; g.lineWidth = 1.5; g.setLineDash([6, 4]);
+  g.beginPath(); g.moveTo(X(-2.3), Y(py + l * (-2.3 - px))); g.lineTo(X(6.5), Y(py + l * (6.5 - px))); g.stroke();
+  g.strokeStyle = "#c8372d"; g.beginPath(); g.moveTo(X(x3), Y(-y3)); g.lineTo(X(x3), Y(y3)); g.stroke(); g.setLineDash([]);
+  const dot = (x, y, col, lab) => { g.beginPath(); g.arc(X(x), Y(y), 6, 0, 7); g.fillStyle = col; g.fill(); g.font = "bold 13px sans-serif"; g.fillText(lab, X(x) + 9, Y(y) - 8); };
+  dot(px, py, "#1e8e5a", "P");
+  dot(x3, -y3, "#777", "-2P (3rd intersection)");
+  dot(x3, y3, "#c8372d", "2P");
+})();
+
+document.getElementById("run").addEventListener("click", start);
+gSel.addEventListener("change", start);
+start();
+</script>
+</body>
+</html>
