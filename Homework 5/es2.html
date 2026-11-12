@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exercise 2 – Numerical computation of the normal CDF</title>
+<style>
+:root{--bg:#f6f7f9;--ink:#1b2430;--mut:#5b6675;--line:#d5dae1;--acc:#0d6e6e;--bad:#b4441f;--card:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#12171d;--ink:#e6eaef;--mut:#9aa6b4;--line:#2b3440;--acc:#4cc2bd;--bad:#ff8a63;--card:#1a212a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,sans-serif}
+main{max-width:940px;margin:auto;padding:28px 18px 60px}
+h1,h2{font-family:Georgia,serif;line-height:1.2}h1{font-size:2rem;margin:.3rem 0}h2{margin-top:2.2rem;border-bottom:1px solid var(--line);padding-bottom:.3rem}
+a{color:var(--acc)}code{background:var(--card);padding:1px 4px;border-radius:3px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin:12px 0}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+button{font:inherit;padding:6px 12px;border:1px solid var(--acc);border-radius:4px;background:var(--acc);color:#fff;cursor:pointer}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:4px 8px;text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}
+.bad{color:var(--bad)}.mut{color:var(--mut)}
+</style></head><body><main>
+<a href="index.html">← Index</a>
+<h1>Exercise 2 – Numerical computation of the normal CDF</h1>
+<p class="mut">Φ(z) = P(Z ≤ z) = ∫<sub>−∞</sub><sup>z</sup> φ(t) dt, with φ(t) = e<sup>−t²/2</sup>/√(2π).</p>
+<div class="card"><b>Reference values and sources.</b> The reference is SciPy's <code>scipy.stats.norm.cdf</code> (<a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norm.html">documentation</a>). Published outputs found on the web: Φ(1.96) = 0.9750021048517795 (<a href="https://www.statology.org/normal-cdf-in-python/">Statology</a>); Φ(−1), Φ(−2.5), 1−Φ(5) and 1−Φ(10) in the SciPy-derived tests of <a href="https://docs.rs/crate/dml-core/latest/source/src/stats.rs">dml-core</a>; CDFLIB (<a href="https://docs.rs/cdflib">cdflib</a>) agrees on Φ(1.96) and 1−Φ(5). All values in the tables were additionally recomputed independently with Python <code>mpmath.ncdf</code> at 40 digits of working precision and rounded to 17 significant digits. Checked against <code>scipy.stats.norm.cdf</code> (SciPy 1.18.1, run locally), they agree to within 7.3·10<sup>−15</sup> relative error, the largest gap being at z = −10 in the far tail; mpmath is the more accurate of the two there. The extended validation table (38 points, z from −37 to 8) uses the same mpmath procedure and is not copied from the web.</div>
+
+<h2>1. Why Φ is not elementary (Liouville)</h2>
+<div class="card">
+<p><b>Liouville's theorem (Rosenlicht form).</b> Let f, g be rational functions with g non-constant. Then ∫ f(x) e<sup>g(x)</sup> dx is an elementary function if and only if there is a rational function h with <b>h′ + g′h = f</b>; in that case the antiderivative is h·e<sup>g</sup>.</p>
+<p><b>Application.</b> Take f = 1, g = −x²/2, so g′ = −x and we need h′ − x·h = 1 with h rational. (i) If h had a pole of order k ≥ 1 at c, then h′ has a pole of order k+1 while x·h has order ≤ k: no cancellation is possible. So h is a polynomial of degree d. (ii) If h ≠ 0, x·h has degree d+1 and h′ has degree d−1, so the left side has degree d+1 ≥ 1, never the constant 1; if h = 0 the left side is 0 ≠ 1. Contradiction: <b>e<sup>−x²/2</sup> has no elementary antiderivative</b>, hence neither Φ.</p>
+<p><b>Remark.</b> "No elementary antiderivative" is not "no antiderivative": Φ(z) = ½ + (1/√(2π)) Σ (−1)<sup>k</sup> z<sup>2k+1</sup> / (2<sup>k</sup> k! (2k+1)) is an explicit antiderivative as a power series. Also the definite integral over ℝ equals 1 (polar coordinates) although no elementary antiderivative exists.</p>
+</div>
+
+<h2>2. The error function</h2>
+<div class="card">
+<p>erf(x) = (2/√π) ∫<sub>0</sub><sup>x</sup> e<sup>−t²</sup> dt is <i>defined</i> to be that antiderivative, and then <b>Φ(z) = ½ [1 + erf(z/√2)]</b> exactly, i.e. an exact analytic representation. But it only moves the problem: erf is a new special (non-elementary) function whose values are known in closed form only at 0 and ±∞. To get a number one still needs an algorithm: quadrature, a series, a continued fraction or a rational approximation. That is why libraries ship such routines (C has <code>erf</code>/<code>erfc</code>; JavaScript's <code>Math</code> has no erf at all, so it is implemented below).</p>
+</div>
+
+<h2>3. Implemented methods</h2>
+<div class="card"><ul>
+<li><b>Trapezoid</b> and <b>Simpson</b> (n = 100 panels): Φ(z) = ½ + ∫<sub>0</sub><sup>z</sup> φ. Errors O(h²) and O(h⁴).</li>
+<li><b>Maclaurin series</b> (from the course notes): alternating, up to 200 terms; terms reach ≈ e<sup>z²/2</sup>, so cancellation destroys digits for large |z|.</li>
+<li><b>A&amp;S 7.1.26</b>: erf(x) ≈ 1 − (a₁t+…+a₅t⁵)e<sup>−x²</sup>, t = 1/(1+px); absolute error ≤ 1.5·10⁻⁷, five multiplications, one exp.</li>
+<li><b>erf positive series</b> (Kummer): Φ(z) = ½ + φ(z) Σ z<sup>2n+1</sup>/(1·3·5…(2n+1)). All terms positive for z &gt; 0, no cancellation inside the sum.</li>
+<li><b>Hybrid</b>: positive series for |z| &lt; 2, otherwise the continued fraction Q(z) = φ(z) / (z + 1/(z + 2/(z + 3/(z + …)))) evaluated for the tail directly, so Φ(−z) = Q(z) keeps full relative precision and 1 − Φ is never formed.</li>
+</ul></div>
+
+<div class="card"><div class="row"><button id="b1">Compare with reference</button><button id="b2">Convergence at z = 1.96</button><button id="b3">Speed and accuracy sweep</button><button id="b4">Extended tail validation (Hybrid)</button></div></div>
+<div id="out"></div>
+
+<h2>4. Conclusions</h2>
+<div class="card">
+<p><b>Accuracy.</b> Quadrature from 0 to z is accurate for moderate z but computes ½ + (small tail integral) for negative z, so relative accuracy in the lower tail is lost (Φ(−5) ≈ 2.9·10⁻⁷, Φ(−10) ≈ 7.6·10⁻²⁴). The alternating Maclaurin series suffers catastrophic cancellation at |z| ≥ ~4. A&amp;S 7.1.26 is only 10⁻⁷ accurate in absolute terms, hence useless in tails. The positive series is accurate near the centre but, for negative z, computing ½ − (…) has the same tail problem. The hybrid is accurate to a few units of 10<sup>−15</sup> relative error for most z; on a dense grid of 1601 points in [−8, 8] (step 0.01) checked against mpmath the worst case was 7.9·10<sup>−15</sup>, which grows slowly with |z| because of the rounding error in exp(−z²/2). The switch point matters: with the series used up to |z| &lt; 3 the worst case was 1.2·10<sup>−13</sup> (near z = −2.97, where ½ − φ(z)·Σ loses about two digits to cancellation), so the series is used only for |z| &lt; 2.</p>
+<p><b>Efficiency.</b> Quadrature costs O(n) exp evaluations per call; the series needs about |z|² + 20 terms and the continued fraction a fixed ≈ 200 steps with no exp inside the loop; A&amp;S needs a single exp and is the fastest. Convergence is geometric for the series (factor z²/(2n+1) per term once n &gt; z²/2), algebraic for trapezoid/Simpson (error table above).</p>
+</div>
+
+<script>
+const $=id=>document.getElementById(id),SQ2PI=Math.sqrt(2*Math.PI);
+const phi=x=>Math.exp(-x*x/2)/SQ2PI;
+function trap(z,n=100){const h=z/n;let s=(phi(0)+phi(z))/2;for(let i=1;i<n;i++)s+=phi(i*h);return .5+s*h}
+function simp(z,n=100){const h=z/n;let s=phi(0)+phi(z);for(let i=1;i<n;i++)s+=(i%2?4:2)*phi(i*h);return .5+s*h/3}
+function maclaurin(z,N=200){let a=1,s=1;for(let k=1;k<N;k++){a*=-z*z/(2*k);s+=a/(2*k+1);if(Math.abs(a)<1e-18*Math.abs(s))break}return .5+z*s/SQ2PI}
+function maclN(z,N){let a=1,s=1;for(let k=1;k<N;k++){a*=-z*z/(2*k);s+=a/(2*k+1)}return .5+z*s/SQ2PI}
+function asErf(z){const x=Math.abs(z)/Math.SQRT2,t=1/(1+.3275911*x);
+ const e=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-.284496736)*t+.254829592)*t*Math.exp(-x*x);
+ return .5*(1+(z<0?-e:e))}
+function posSeries(z){let t=z,s=z;for(let i=3;i<1000;i+=2){t*=z*z/i;s+=t;if(Math.abs(t)<1e-17*Math.abs(s))break}return .5+phi(z)*s}
+function Q(x){if(x<2)return .5-phi(x)*(()=>{let t=x,s=x;for(let i=3;i<1000;i+=2){t*=x*x/i;s+=t;if(Math.abs(t)<1e-17*s)break}return s})();
+ let f=x;for(let k=200;k>=1;k--)f=x+k/f;return phi(x)/f}
+function hybrid(z){if(z===0)return .5;if(z>8.3)return 1;return z>0?1-Q(z):Q(-z)}
+const M={'Trapezoid':z=>trap(z),'Simpson':z=>simp(z),'Maclaurin':z=>maclaurin(z),'A&S 7.1.26':asErf,'erf pos. series':posSeries,'Hybrid':hybrid};
+const REF=[[0,.5],[.5,.6914624612740131],[1,.84134474606854295],[1.96,.97500210485177956],[2,.97724986805182079],[3,.99865010196836991],
+ [-1,.15865525393145705],[-2.5,.0062096653257761352],[-5,2.8665157187919391e-7],[-10,7.6198530241605261e-24]];
+const EXT=[[-37,5.7255712225245768e-300],[-30,4.9067139271481871e-198],[-25,3.0566967063825609e-138],[-20,2.7536241186062337e-89],[-15,3.6709661993127509e-51],[-12,1.776482112077679e-33],[-10,7.6198530241605261e-24],[-8,6.2209605742717841e-16],[-7,1.279812543885835e-12],[-6,9.8658764503769814e-10],[-5,2.8665157187919391e-7],[-4.5,3.3976731247300604e-6],[-4,3.1671241833119921e-5],[-3.5,0.00023262907903552504],[-3,0.0013498980316300945],[-2.97,0.0014889987452374648],[-2.5,0.0062096653257761352],[-2.1,0.017864420562816553],[-2,0.022750131948179207],[-1.9,0.028716559816001805],[-1.5,0.066807201268858066],[-1,0.15865525393145705],[-0.5,0.3085375387259869],[-0.1,0.46017216272297102],[0.1,0.53982783727702898],[0.5,0.6914624612740131],[1,0.84134474606854295],[1.5,0.93319279873114193],[1.96,0.97500210485177956],[2,0.97724986805182079],[2.5,0.99379033467422386],[3,0.99865010196836991],[3.5,0.99976737092096447],[4,0.99996832875816688],[5,0.99999971334842812],[6,0.99999999901341235],[7,0.99999999999872019],[8,0.99999999999999938]]
+const er=e=>!isFinite(e)?'—':e===0?'0':e.toExponential(1);
+const table=(h,rows)=>`<div class="tw"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</table></div>`;
+function cmp(){const rows=REF.map(([z,r])=>[z,r.toPrecision(15),hybrid(z).toPrecision(15),...Object.keys(M).map(k=>{const e=Math.abs(M[k](z)-r)/r;return e>1e-6?`<span class="bad">${er(e)}</span>`:er(e)})]);
+ $('out').innerHTML='<p>Relative error |Φ<sub>method</sub> − Φ<sub>ref</sub>| / Φ<sub>ref</sub> (red: worse than 1e-6).</p>'+table(['z','Reference','Hybrid value',...Object.keys(M)],rows)}
+function ext(){let mx=0;const rows=EXT.map(([z,r])=>{const h=hybrid(z),e=Math.abs(h-r)/r;if(e>mx)mx=e;return[z,r.toPrecision(15),h.toPrecision(15),er(e)]});
+ $('out').innerHTML='<p>Hybrid vs independent mpmath reference over 38 points from z = −37 to 8. Max relative error: <b>'+er(mx)+'</b>.</p>'+table(['z','Reference (mpmath)','Hybrid','Relative error'],rows)}
+function conv(){const z=1.96,r=.9750021048517795,rows=[2,4,8,16,32,64,128].map(n=>[n,er(Math.abs(trap(z,n)-r)),er(Math.abs(simp(z,n)-r)),er(Math.abs(maclN(z,Math.max(2,n/4|0))-r)),er(Math.abs(maclN(z,n/2)-r))]);
+ $('out').innerHTML='<p>Absolute error at z = 1.96 vs reference. n = panels for quadrature; the series columns use n/4 and n/2 terms.</p>'+table(['n','Trapezoid','Simpson','Maclaurin (n/4 terms)','Maclaurin (n/2 terms)'],rows)}
+let sink=0;function bench(){const N=1e6,zs=new Float64Array(N);for(let i=0;i<N;i++)zs[i]=-6+12*((i*0.6180339887)%1);
+ const g=[];for(let i=0;i<=2400;i++)g.push(-6+i*.005);
+ const rows=Object.keys(M).map(k=>{const f=M[k],n=k==='Trapezoid'||k==='Simpson'?N/50:N;const run=()=>{let s=0;const t=performance.now();for(let i=0;i<n;i++)s+=f(zs[i]);sink+=s;return performance.now()-t};run();const ts=[];for(let r=0;r<7;r++)ts.push(run());ts.sort((a,b)=>a-b);const d=ts[3];
+  let ea=0,er_=0;if(k==='Hybrid'){for(const [z,r] of REF.concat(EXT)){const e=Math.abs(f(z)-r);if(e>ea)ea=e;if(e/r>er_)er_=e/r}}else for(const z of g){const h=hybrid(z),e=Math.abs(f(z)-h);if(e>ea)ea=e;if(h>1e-300&&e/h>er_)er_=e/h}
+  return[k,(d/n*1e6).toFixed(0)+' ns',er(ea),er(er_)]});
+ $('out').innerHTML='<p>Cost per call (quadrature timed on 20 000 calls, others on 10<sup>6</sup>; one warm-up pass for the JIT, then the median of 7 repeats) and max error over z ∈ [−6, 6] (2401 points) measured against the Hybrid method, which is validated independently in the reference table and in the extended tail table. The Hybrid row itself is not compared with itself: its error is taken against the mpmath values of those two tables (48 points, z from −37 to 8). Results are accumulated to prevent dead-code elimination. Timings still vary between machines and browsers.</p>'+table(['Method','Time per call','Max abs error','Max rel error'],rows)}
+$('b1').onclick=cmp;$('b2').onclick=conv;$('b3').onclick=bench;$('b4').onclick=ext;cmp();
+</script></main></body></html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exercise 1 – Riemann and Lebesgue integration</title>
+<style>
+:root{--bg:#f6f7f9;--ink:#1b2430;--mut:#5b6675;--line:#d5dae1;--acc:#0d6e6e;--bad:#b4441f;--card:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#12171d;--ink:#e6eaef;--mut:#9aa6b4;--line:#2b3440;--acc:#4cc2bd;--bad:#ff8a63;--card:#1a212a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,sans-serif}
+main{max-width:940px;margin:auto;padding:28px 18px 60px}
+h1,h2{font-family:Georgia,serif;line-height:1.2}h1{font-size:2rem;margin:.3rem 0}h2{margin-top:2.2rem;border-bottom:1px solid var(--line);padding-bottom:.3rem}
+a{color:var(--acc)}code{background:var(--card);padding:1px 4px;border-radius:3px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin:12px 0}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:end}label{display:flex;flex-direction:column;font-size:.85rem;color:var(--mut)}
+select,input,button{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--ink)}
+button{background:var(--acc);color:#fff;border-color:var(--acc);cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:4px 8px;text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}
+.bad{color:var(--bad)}.mut{color:var(--mut)}canvas{width:100%;max-width:760px;height:auto}
+</style></head><body><main>
+<a href="index.html">← Index</a>
+<h1>Exercise 1 – Riemann and Lebesgue integration</h1>
+<p class="mut">Riemann approach: partition the <b>domain</b> [a,b] into n subintervals (left, right, midpoint, trapezoid sums). Lebesgue-style approach: partition the <b>range</b> into m levels [y<sub>k</sub>, y<sub>k+1</sub>), estimate the measure μ(E<sub>k</sub>) of the preimages E<sub>k</sub> = f<sup>−1</sup>([y<sub>k</sub>,y<sub>k+1</sub>)) by counting M equispaced domain samples, and sum Σ y<sub>k</sub> μ(E<sub>k</sub>) (lower simple function; the upper one adds exactly h·(b−a), h = range/m). This is a numerical approximation inspired by Lebesgue's construction, not an exact computation of the Lebesgue integral: the measures μ(E<sub>k</sub>) are estimated by sampling. The range [lo, hi] is the true [inf f, sup f] when it is known analytically, and the sampled minimum/maximum otherwise (1/√x).</p>
+
+<div class="card"><div class="row">
+<label>Function<select id="fn"></select></label>
+<label>n (Riemann subintervals)<input id="n" type="number" value="1000" min="1" max="1000000"></label>
+<label>m (range levels)<input id="m" type="number" value="1000" min="1" max="1000000"></label>
+<label>M (domain samples)<input id="M" type="number" value="1000000" min="1000" max="5000000"></label>
+<button id="run">Single run</button><button id="conv">Convergence study</button><button id="all">All functions</button>
+</div></div>
+<div id="out"></div>
+<canvas id="cv" width="760" height="380" hidden></canvas>
+
+<h2>Discussion</h2>
+<div class="card" id="disc">
+<p><b>Same value for Riemann-integrable functions.</b> If f is Riemann integrable, Lebesgue and Riemann integrals coincide, and both numerical approaches converge to the same number (sin x → 2, x² → 1/3, steps, |x−½|, sin x/x → Si(π) ≈ 1.85194). The table "All functions" shows this.</p>
+<p><b>Accuracy and convergence.</b> For smooth f the midpoint and trapezoid sums converge as O(1/n²), left/right sums as O(1/n). For piecewise-continuous f (steps) every Riemann rule drops to O(1/n), and exactly 0 error appears only when a jump falls on a grid node. The lower/upper pair brackets the <i>quantised sample average</i>; its width (max−min)(b−a)/m is the quantisation error due to the range partition, whatever the regularity of f. It is not a guaranteed bound on the true integral, because the measures μ(E<sub>k</sub>) are estimated from M samples (error about O(1/M) for piecewise-smooth f) and, when the range is not known exactly, min/max are taken from the samples (a midpoint grid never hits the extremes of sin x on [0,π]). With M fixed, increasing m beyond the point where the bracket is below the sampling error brings no gain: the error curve flattens. That plateau is visible in the convergence chart.</p>
+<p><b>Efficiency.</b> Riemann: n function evaluations per rule, O(1) memory. Lebesgue-style: M evaluations plus an O(M + m) binning pass and O(M) memory, so for smooth 1D integrands it is clearly less efficient (it needs a measure oracle; here the grid plays that role). Its advantage is conceptual: it only needs the measure of level sets.</p>
+<p><b>Where they differ.</b> (1) <b>Dirichlet</b>: not Riemann integrable (every upper Darboux sum is 1, every lower sum is 0; Riemann sums depend on the tags: 1 with rational tags, 0 with irrational ones), but Lebesgue integrable with ∫ = 1·μ(ℚ∩[0,1]) + 0·1 = 0. Floating-point numbers are all rational, so a program cannot sample the Dirichlet function meaningfully; the Lebesgue value is obtained from the exact measures of the level sets. (2) <b>Thomae</b>: Riemann integrable (continuous at every irrational, upper Darboux sums → 0 like n<sup>−1/2</sup>), integral 0; Lebesgue gives 0 because each {f ≥ 1/q} is finite. (3) <b>1/√x</b> is unbounded: it is an improper Riemann integral (left sum = ∞, right/midpoint sums converge slowly, error O(n<sup>−1/2</sup>)), while it is a plain Lebesgue integral. Riemann rules must treat the singular endpoint separately (right/midpoint sums avoid evaluating f(0), the left and trapezoid sums are ∞). The range-partition sum takes the sampled maximum as the top of the range, so it cannot see the part of the tail above that value: it is effectively a truncation, and its error shrinks only as M grows (more samples near 0 reach higher values). (4) The indicator step shows the difference in cost vs. accuracy: Lebesgue sees only two level sets and is exact up to the sampling of the jump point.</p>
+</div>
+
+<script>
+const PI=Math.PI,$=id=>document.getElementById(id);
+const F={
+ sin:{n:'sin(x), [0, π]',f:Math.sin,a:0,b:PI,ex:2,r:[0,1]},
+ sq:{n:'x², [0, 1]',f:x=>x*x,a:0,b:1,ex:1/3,r:[0,1]},
+ step:{n:'1 if x<0.5, 3 if x≥0.5, [0, 1]',f:x=>x<.5?1:3,a:0,b:1,ex:2,r:[1,3]},
+ abs:{n:'|x − 0.5|, [0, 1]',f:x=>Math.abs(x-.5),a:0,b:1,ex:.25,r:[0,.5]},
+ inv:{n:'1/√x, (0, 1] (improper)',f:x=>1/Math.sqrt(x),a:0,b:1,ex:2},
+ ind:{n:'1 if x<0.5, 0 if x≥0.5, [0, 1]',f:x=>x<.5?1:0,a:0,b:1,ex:.5,r:[0,1]},
+ sinc:{n:'sin(x)/x, [0, π]',f:x=>x===0?1:Math.sin(x)/x,a:0,b:PI,ex:1.851937051982466,r:[0,1]},
+ dir:{n:'Dirichlet (1 on ℚ, 0 on irrationals)',sp:1,a:0,b:1,ex:0},
+ tho:{n:'Thomae (1/q at p/q, 0 on irrationals)',sp:1,a:0,b:1,ex:0}};
+for(const k in F)$('fn').add(new Option(F[k].n,k));
+const fmt=v=>isFinite(v)?v.toPrecision(12):(v>0?'∞':String(v));
+const er=e=>isFinite(e)?(e===0?'0':e.toExponential(2)):'∞';
+const T=fn=>{const t=performance.now();const r=fn();return[r,performance.now()-t]};
+const ms=t=>t<10?t.toFixed(2):t.toFixed(0);
+
+function riemann(f,a,b,n){const h=(b-a)/n;let L=0,R=0,M=0;
+ for(let i=0;i<n;i++){const x=a+i*h;L+=f(x);R+=f(x+h);M+=f(x+h/2)}
+ return{left:L*h,right:R*h,mid:M*h,trap:(L+R)*h/2}}
+function samples(f,a,b,M){const v=new Float64Array(M),d=(b-a)/M;for(let i=0;i<M;i++)v[i]=f(a+(i+.5)*d);return v}
+function lebesgue(v,a,b,m,rg){let lo=Infinity,hi=-Infinity;
+ if(rg){lo=rg[0];hi=rg[1]}else for(const y of v){if(y<lo)lo=y;if(y>hi)hi=y}
+ const h=(hi-lo)/m,len=b-a,M=v.length;
+ if(h===0)return{lo:lo*len,up:lo*len,mid:lo*len};
+ const c=new Float64Array(m);
+ for(const y of v){let k=Math.floor((y-lo)/h);if(k>=m)k=m-1;if(k<0)k=0;c[k]++}
+ let s=0;for(let k=0;k<m;k++)s+=(lo+k*h)*c[k];s*=len/M;
+ return{lo:s,up:s+h*len,mid:s+h*len/2}}
+const gcd=(a,b)=>b?gcd(b,a%b):a;
+function thomae(n){let left=0,up=0;
+ for(let i=0;i<n;i++){left+=gcd(i,n)/n;let q=1;
+  while(Math.floor((i*q+n-1)/n)*n>(i+1)*q)q++;up+=1/q}
+ return{left:left/n,up:up/n}}
+
+const table=(h,rows)=>`<div class="tw"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</table></div>`;
+const vals=(v,ex)=>[fmt(v),er(Math.abs(v-ex))];
+
+function single(){
+ const k=$('fn').value,o=F[k],n=+$('n').value,m=+$('m').value,M=+$('M').value;let h;
+ if(o.sp){
+  if(k==='dir')h=`<div class="card"><p><b>Dirichlet.</b> Riemann: lower Darboux sum = 0 and upper = 1 for <i>every</i> partition, so the function is <b class="bad">not Riemann integrable</b>. Riemann sums with rational tags equal 1, with irrational tags 0 — they never converge.</p><p>Lebesgue: E<sub>1</sub> = ℚ∩[0,1] has μ = 0, E<sub>0</sub> = irrationals has μ = 1, hence ∫ = 1·0 + 0·1 = <b>0</b> (exact).</p></div>`;
+  else{const [t,d]=T(()=>thomae(Math.min(n,200000)));
+   h=`<div class="card"><p><b>Thomae</b> (n = ${Math.min(n,200000)}): upper Darboux sum = ${fmt(t.up)}, lower = 0, left Riemann sum with rational tags i/n = ${fmt(t.left)} (${ms(d)} ms). Both → 0 = exact integral, so f is Riemann integrable, but slowly (upper ≈ n<sup>−1/2</sup>).</p><p>Lebesgue: each level set {f = 1/q} is finite, so μ = 0; {f = 0} has μ = 1, hence ∫ = <b>0</b> (exact, no sampling needed).</p></div>`}
+ }else{
+  const [r,tr]=T(()=>riemann(o.f,o.a,o.b,n));
+  const [l,tl]=T(()=>lebesgue(samples(o.f,o.a,o.b,M),o.a,o.b,m,o.r));
+  h=`<p>Exact value: <b>${fmt(o.ex)}</b></p>`+table(['Method','Value','|error|','Evaluations','Time (ms)'],[
+   ['Riemann left',...vals(r.left,o.ex),3*n+' (all 4 rules)',ms(tr)],['Riemann right',...vals(r.right,o.ex),'',''],
+   ['Riemann midpoint',...vals(r.mid,o.ex),'',''],['Trapezoid',...vals(r.trap,o.ex),'',''],
+   ['Range partition, lower',...vals(l.lo,o.ex),M,ms(tl)],['Range partition, upper',...vals(l.up,o.ex),'',''],
+   ['Range partition, mid',...vals(l.mid,o.ex),'','']])}
+ $('out').innerHTML=h;$('cv').hidden=true}
+
+function conv(){
+ const k=$('fn').value,o=F[k],M=+$('M').value;$('cv').hidden=true;
+ if(o.sp){
+  if(k==='dir'){$('out').innerHTML=table(['n','Lower Darboux','Upper Darboux','Rational tags','Irrational tags','Lebesgue'],[10,100,1000,10000].map(n=>[n,0,1,1,0,'0 (exact)']))+'<p class="mut">No convergence of Riemann sums: the two approaches differ.</p>';return}
+  const rows=[10,100,1000,10000,100000].map(n=>{const t=thomae(n);return[n,0,fmt(t.up),fmt(t.left),'0 (exact)']});
+  $('out').innerHTML=table(['n','Lower Darboux','Upper Darboux','Left sum, rational tags','Lebesgue'],rows);return}
+ const ns=[10,100,1e3,1e4,1e5,1e6],rows=[],S={left:[],mid:[],trap:[],leb:[]};
+ const [v,te]=T(()=>samples(o.f,o.a,o.b,M));
+ for(const n of ns){const[r,tr]=T(()=>riemann(o.f,o.a,o.b,n));const[l,tl]=T(()=>lebesgue(v,o.a,o.b,n,o.r));
+  const e=[r.left,r.mid,r.trap,l.mid].map(x=>Math.abs(x-o.ex));
+  ['left','mid','trap','leb'].forEach((s,i)=>S[s].push(e[i]));
+  rows.push([n,...e.map(er),ms(tr),ms(tl+te)])}
+ $('out').innerHTML=`<p>Absolute error vs exact value ${fmt(o.ex)}. Lebesgue column: m = n levels, M = ${M} samples (time includes the evaluation of the samples).</p>`+table(['n = m','Riemann left','Riemann midpoint','Trapezoid','Range partition (mid)','Riemann ms','Lebesgue ms'],rows);
+ chart(ns,S)}
+
+function chart(ns,S){const c=$('cv'),g=c.getContext('2d'),W=c.width,H=c.height,p=50;c.hidden=false;
+ g.clearRect(0,0,W,H);const css=getComputedStyle(document.body),ink=css.color;
+ const col={left:'#b4441f',mid:'#0d6e6e',trap:'#7a5cc7',leb:'#c9961a'},lab={left:'Riemann left',mid:'Riemann midpoint',trap:'Trapezoid',leb:'Range partition'};
+ const ly=e=>Math.log10(Math.min(Math.max(e,1e-17),1e3)),all=Object.values(S).flat().map(ly);
+ const y0=Math.floor(Math.min(...all)),y1=Math.ceil(Math.max(...all)),x0=1,x1=6;
+ const X=v=>p+(v-x0)/(x1-x0)*(W-2*p),Y=v=>H-p-(v-y0)/(y1-y0||1)*(H-2*p);
+ g.strokeStyle=ink;g.fillStyle=ink;g.globalAlpha=.3;g.strokeRect(p,p,W-2*p,H-2*p);g.globalAlpha=1;g.font='12px system-ui';
+ for(let e=y0;e<=y1;e++)g.fillText('1e'+e,4,Y(e)+4);
+ ns.forEach((n,i)=>g.fillText(n>=1e3?'1e'+Math.log10(n):n,X(i+1)-8,H-p+16));
+ g.fillText('log error vs n (floor 1e-17)',p,p-12);
+ let ky=p+14;for(const s in S){g.strokeStyle=col[s];g.fillStyle=col[s];g.lineWidth=2;g.beginPath();
+  S[s].forEach((e,i)=>{const x=X(i+1),y=Y(ly(e));i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();
+  g.fillText(lab[s],W-p-130,ky);ky+=16}}
+
+function all(){const rows=[],n=1e4,m=1e4,M=1e6;
+ for(const k in F){const o=F[k];
+  if(o.sp){rows.push([o.n,fmt(o.ex),k==='dir'?'<span class="bad">not integrable</span>':'→ 0 (slow)','—','0 (exact)','—']);continue}
+  const r=riemann(o.f,o.a,o.b,n),l=lebesgue(samples(o.f,o.a,o.b,M),o.a,o.b,m,o.r);
+  rows.push([o.n,fmt(o.ex),er(Math.abs(r.mid-o.ex)),er(Math.abs(r.trap-o.ex)),er(Math.abs(l.mid-o.ex)),isFinite(r.left)?er(Math.abs(r.left-o.ex)):'∞'])}
+ $('out').innerHTML=`<p>n = ${n}, m = ${m}, M = ${M}. Absolute errors.</p>`+table(['Function','Exact','Riemann midpoint','Trapezoid','Range partition','Riemann left'],rows);$('cv').hidden=true}
+$('run').onclick=single;$('conv').onclick=conv;$('all').onclick=all;all();
+</script></main></body></html>
