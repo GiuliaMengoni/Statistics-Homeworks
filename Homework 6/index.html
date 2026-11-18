@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Homework: Statistical Independence</title>
+<style>
+:root{--bg:#fbfcfd;--fg:#1b2430;--mut:#5d6b7b;--line:#d5dce4;--acc:#1f4e8c;--soft:#eef3f9;--warn:#9a5b00;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11161d;--fg:#e4e9ef;--mut:#9aa7b6;--line:#2c3643;--acc:#7fb0ee;--soft:#1a222d;--warn:#e0a84a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11161d;--fg:#e4e9ef;--mut:#9aa7b6;--line:#2c3643;--acc:#7fb0ee;--soft:#1a222d;--warn:#e0a84a;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 Georgia,"Times New Roman",serif}
+main{max-width:860px;margin:0 auto;padding:32px 18px 64px}
+h1{font-size:2rem;line-height:1.2;margin:0 0 6px}
+h2{font-size:1.3rem;margin:40px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+h3{font-size:1.05rem;margin:22px 0 6px}
+p{max-width:70ch}
+.sub{color:var(--mut);margin:0 0 20px}
+textarea,input,select,button{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 10px}
+textarea{width:100%;height:150px;font:14px/1.4 ui-monospace,Menlo,Consolas,monospace}
+button{background:var(--acc);color:var(--bg);border-color:var(--acc);cursor:pointer;font-family:system-ui,sans-serif}
+button.alt{background:transparent;color:var(--acc)}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0}
+.tw{overflow-x:auto;margin:8px 0 16px}
+table{border-collapse:collapse;font-variant-numeric:tabular-nums;font-family:system-ui,sans-serif;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:6px 12px;text-align:right}
+th{background:var(--soft);font-weight:600}
+td.tot,th.tot{background:var(--soft);font-weight:600}
+td:first-child,th:first-child{text-align:left}
+.res{border-left:4px solid var(--acc);background:var(--soft);padding:12px 16px;margin:14px 0;max-width:70ch}
+.warn{color:var(--warn)}
+.cap{font-size:.9rem;color:var(--mut);margin:2px 0}
+code{font:.9em ui-monospace,Menlo,Consolas,monospace;background:var(--soft);padding:1px 4px;border-radius:3px}
+.eq{font-family:Georgia,serif;font-style:italic;margin:8px 0 8px 18px}
+</style>
+</head>
+<body>
+<main>
+<h1>Homework: Statistical Independence</h1>
+<p class="sub">Bivariate dataset (X, F): contingency table, marginal and conditional frequencies, expected frequencies, chi-square test and interpretation.</p>
+
+<h2>1. Theoretical background</h2>
+<p>Two events A and B are <b>independent</b> when P(A ∩ B) = P(A)·P(B), equivalently P(A | B) = P(A). Knowing one outcome does not change the probability of the other.</p>
+<p>For two categorical variables X (r categories) and F (c categories), independence means that for every cell (i, j) the joint relative frequency equals the product of the marginals:</p>
+<div class="eq">f<sub>ij</sub> = f<sub>i·</sub> · f<sub>·j</sub> &nbsp;⇔&nbsp; n<sub>ij</sub> = E<sub>ij</sub> = (n<sub>i·</sub> · n<sub>·j</sub>) / n</div>
+<p>Equivalently, all conditional distributions of F given X = x<sub>i</sub> are identical to the marginal distribution of F. The deviation from this ideal is measured by Pearson’s statistic:</p>
+<div class="eq">χ² = Σ<sub>i,j</sub> (n<sub>ij</sub> − E<sub>ij</sub>)² / E<sub>ij</sub>, &nbsp; df = (r − 1)(c − 1)</div>
+<p>Under H<sub>0</sub> (independence) χ² approximately follows a chi-square distribution with df degrees of freedom (reliable when all E<sub>ij</sub> ≥ 5). The <b>p-value</b> is P(χ²<sub>df</sub> ≥ χ²<sub>obs</sub>); if p &lt; α we reject H<sub>0</sub>. Cramér’s V = √(χ² / (n·min(r−1, c−1))) measures the strength of the association (0 = none, 1 = perfect).</p>
+
+<h2>2. Data</h2>
+<p class="cap">Paste any bivariate dataset, one observation per line as <code>X,F</code> (comma, semicolon or tab). The default is an example: commute mode (X) versus arriving late (F).</p>
+<textarea id="data" spellcheck="false" aria-label="Raw data"></textarea>
+<div class="row">
+  <label><input type="checkbox" id="hdr" checked> first row is a header</label>
+  <label>α <select id="alpha"><option>0.10</option><option selected>0.05</option><option>0.01</option></select></label>
+  <button id="run">Run analysis</button>
+  <button id="ex" class="alt">Reload example</button>
+</div>
+<p id="err" class="warn"></p>
+
+<div id="out" hidden>
+<h2>3. Contingency table and marginal frequencies</h2>
+<h3>3.1 Observed absolute frequencies n<sub>ij</sub> with marginal totals</h3>
+<div class="tw" id="tObs"></div>
+<h3>3.2 Joint relative frequencies f<sub>ij</sub> = n<sub>ij</sub> / n, with marginal relative frequencies</h3>
+<div class="tw" id="tJoint"></div>
+<h3>3.3 Conditional relative frequencies</h3>
+<p class="cap">Distribution of F within each category of X (rows sum to 1), compared with the marginal distribution of F in the last row.</p>
+<div class="tw" id="tCondR"></div>
+<p class="cap">Distribution of X within each category of F (columns sum to 1).</p>
+<div class="tw" id="tCondC"></div>
+
+<h2>4. Expected frequencies under independence</h2>
+<p class="cap">E<sub>ij</sub> = n<sub>i·</sub> · n<sub>·j</sub> / n</p>
+<div class="tw" id="tExp"></div>
+<p class="cap">Contribution of each cell to χ²: (n<sub>ij</sub> − E<sub>ij</sub>)² / E<sub>ij</sub></p>
+<div class="tw" id="tCon"></div>
+
+<h2>5. Chi-square test</h2>
+<div class="res" id="stats"></div>
+
+<h2>6. Interpretation</h2>
+<div id="interp"></div>
+
+<h2>7. Association is not causation</h2>
+<p>A significant chi-square only says that the data are unlikely under independence: the variables are <i>statistically associated</i>. It does not say that X causes F, nor in which direction an effect would run. The association may be produced by a confounding variable (a third factor influencing both), by reverse causation, or by selection effects or chance. Conversely, failing to reject H<sub>0</sub> does not prove independence; it may reflect a small sample and low power. Moreover, with very large n even trivial associations become “significant”, so the effect size (Cramér’s V) should be reported alongside the p-value. Establishing causality requires a suitable design (e.g. randomised experiment) or explicit causal assumptions, not a test of independence alone.</p>
+</div>
+</main>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+
+/* ---------- example dataset (generated from known counts) ---------- */
+function exampleData(){
+  var c={Car:{Late:18,"On time":62},Bus:{Late:34,"On time":46},Bike:{Late:8,"On time":32}};
+  var rows=[];
+  Object.keys(c).forEach(function(x){Object.keys(c[x]).forEach(function(f){for(var k=0;k<c[x][f];k++)rows.push([x,f]);});});
+  var s=7;rows.sort(function(){s=(s*9301+49297)%233280;return s/233280-0.5;});
+  return "X,F\n"+rows.map(function(r){return r.join(",")}).join("\n");
+}
+
+/* ---------- special functions for the p-value ---------- */
+function lgamma(x){
+  var g=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+  var y=x,t=x+5.5;t-=(x+0.5)*Math.log(t);var s=1.000000000190015;
+  for(var j=0;j<6;j++)s+=g[j]/++y;
+  return -t+Math.log(2.5066282746310005*s/x);
+}
+function gammaP(a,x){            /* regularised lower incomplete gamma */
+  if(x<=0)return 0;
+  if(x<a+1){var ap=a,sum=1/a,del=sum;for(var n=0;n<500;n++){ap++;del*=x/ap;sum+=del;if(Math.abs(del)<Math.abs(sum)*1e-14)break;}
+    return sum*Math.exp(-x+a*Math.log(x)-lgamma(a));}
+  var b=x+1-a,c=1/1e-300,d=1/b,h=d;
+  for(var i=1;i<500;i++){var an=-i*(i-a);b+=2;d=an*d+b;if(Math.abs(d)<1e-300)d=1e-300;c=b+an/c;if(Math.abs(c)<1e-300)c=1e-300;d=1/d;var del2=d*c;h*=del2;if(Math.abs(del2-1)<1e-14)break;}
+  return 1-Math.exp(-x+a*Math.log(x)-lgamma(a))*h;
+}
+function chiSqP(chi,df){return Math.max(0,1-gammaP(df/2,chi/2));}   /* survival function */
+
+/* ---------- helpers ---------- */
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]});}
+function f(x,d){return x.toFixed(d===undefined?3:d);}
+function table(head,rows,totCol,totRow){
+  var h="<table><thead><tr>"+head.map(function(t,i){return "<th"+(totCol&&i===head.length-1?' class="tot"':'')+">"+t+"</th>"}).join("")+"</tr></thead><tbody>";
+  rows.forEach(function(r,ri){var last=totRow&&ri===rows.length-1;
+    h+="<tr>"+r.map(function(t,i){var tot=last||(totCol&&i===r.length-1);return i===0?"<th"+(last?' class="tot"':'')+">"+t+"</th>":"<td"+(tot?' class="tot"':'')+">"+t+"</td>"}).join("")+"</tr>";});
+  return h+"</tbody></table>";
+}
+
+/* ---------- analysis ---------- */
+function parse(){
+  var lines=$("data").value.split(/\r?\n/).filter(function(l){return l.trim()!==""});
+  var hdr=null;
+  if($("hdr").checked&&lines.length)hdr=lines.shift().split(/[,;\t]/).map(function(s){return s.trim()});
+  var pairs=[];
+  for(var i=0;i<lines.length;i++){
+    var p=lines[i].split(/[,;\t]/).map(function(s){return s.trim()});
+    if(p.length<2||p[0]===""||p[1]==="")throw new Error("Line "+(i+1+($("hdr").checked?1:0))+" is not a valid pair X,F.");
+    pairs.push([p[0],p[1]]);
+  }
+  return {pairs:pairs,xn:hdr?hdr[0]:"X",fn:hdr&&hdr[1]?hdr[1]:"F"};
+}
+function sortKeys(a){return a.slice().sort(function(u,v){return u.localeCompare(v,undefined,{numeric:true})});}
+
+function analyse(){
+  $("err").textContent="";
+  var d;
+  try{d=parse();}catch(e){$("err").textContent=e.message;$("out").hidden=true;return;}
+  var X=sortKeys(Array.from(new Set(d.pairs.map(function(p){return p[0]})))),
+      F=sortKeys(Array.from(new Set(d.pairs.map(function(p){return p[1]})))),
+      r=X.length,c=F.length,n=d.pairs.length;
+  if(r<2||c<2){$("err").textContent="Both variables need at least two distinct categories.";$("out").hidden=true;return;}
+
+  /* contingency table */
+  var O=X.map(function(){return F.map(function(){return 0})});
+  d.pairs.forEach(function(p){O[X.indexOf(p[0])][F.indexOf(p[1])]++;});
+  var R=O.map(function(row){return row.reduce(function(a,b){return a+b},0)});
+  var C=F.map(function(_,j){return O.reduce(function(a,row){return a+row[j]},0)});
+
+  var xl=esc(d.xn),fl=esc(d.fn),cat=function(a){return a.map(esc)};
+  var H=[xl+" \\ "+fl].concat(cat(F),["Total"]);
+
+  $("tObs").innerHTML=table(H,O.map(function(row,i){return [esc(X[i])].concat(row,[R[i]])}).concat([["Total"].concat(C,[n])]),true,true);
+  $("tJoint").innerHTML=table(H,O.map(function(row,i){return [esc(X[i])].concat(row.map(function(v){return f(v/n)}),[f(R[i]/n)])}).concat([["Total"].concat(C.map(function(v){return f(v/n)}),["1.000"])]),true,true);
+  $("tCondR").innerHTML=table([xl+" \\ "+fl].concat(cat(F),["Sum"]),
+     O.map(function(row,i){return ["P("+fl+" | "+esc(X[i])+")"].concat(row.map(function(v){return f(v/R[i])}),["1.000"])})
+      .concat([["Marginal P("+fl+")"].concat(C.map(function(v){return f(v/n)}),["1.000"])]),true,true);
+  $("tCondC").innerHTML=table(["P("+xl+" | "+fl+")"].concat(cat(F)),
+     X.map(function(x,i){return [esc(x)].concat(O[i].map(function(v,j){return f(v/C[j])}))})
+      .concat([["Sum"].concat(F.map(function(){return "1.000"}))]),false,true);
+
+  /* expected frequencies and chi-square */
+  var E=O.map(function(_,i){return F.map(function(_,j){return R[i]*C[j]/n})});
+  var chi=0,K=O.map(function(row,i){return row.map(function(v,j){var k=Math.pow(v-E[i][j],2)/E[i][j];chi+=k;return k})});
+  var df=(r-1)*(c-1),p=chiSqP(chi,df),V=Math.sqrt(chi/(n*Math.min(r-1,c-1)));
+  var low=0;E.forEach(function(row){row.forEach(function(v){if(v<5)low++})});
+  var alpha=parseFloat($("alpha").value);
+
+  $("tExp").innerHTML=table(H,E.map(function(row,i){return [esc(X[i])].concat(row.map(function(v){return f(v,2)}),[R[i]])}).concat([["Total"].concat(C,[n])]),true,true);
+  $("tCon").innerHTML=table(H.slice(0,-1).concat(["Row sum"]),K.map(function(row,i){return [esc(X[i])].concat(row.map(function(v){return f(v)}),[f(row.reduce(function(a,b){return a+b},0))])}),true,false);
+
+  $("stats").innerHTML=
+    "n = "+n+" &nbsp;|&nbsp; table "+r+" × "+c+" &nbsp;|&nbsp; df = "+df+"<br>"+
+    "<b>χ² = "+f(chi,4)+"</b><br>"+
+    "<b>p-value = "+(p<1e-4?p.toExponential(3):f(p,4))+"</b> &nbsp;(P(χ²<sub>"+df+"</sub> ≥ "+f(chi,4)+"))<br>"+
+    "Cramér’s V = "+f(V,3)+
+    (low?'<br><span class="warn">Warning: '+low+' of '+(r*c)+' cells have an expected frequency below 5; the chi-square approximation may be unreliable.</span>':"");
+
+  /* interpretation */
+  var rej=p<alpha,eff=V<0.1?"negligible":V<0.3?"weak-to-moderate":V<0.5?"moderate-to-strong":"strong";
+  var big=[0,0,0];K.forEach(function(row,i){row.forEach(function(v,j){if(v>big[0])big=[v,i,j]})});
+  var cell=big[1]!==undefined&&big[0]>0?"The cell contributing most to χ² is ("+esc(X[big[1]])+", "+esc(F[big[2]])+"): observed "+O[big[1]][big[2]]+" vs expected "+f(E[big[1]][big[2]],1)+", i.e. "+(O[big[1]][big[2]]>E[big[1]][big[2]]?"more":"fewer")+" cases than independence predicts.":"";
+  $("interp").innerHTML=
+    "<p><b>Hypotheses.</b> H<sub>0</sub>: "+xl+" and "+fl+" are independent; H<sub>1</sub>: they are dependent.</p>"+
+    '<div class="res">'+(rej
+      ?"Since p = "+(p<1e-4?p.toExponential(2):f(p,4))+" &lt; α = "+alpha+", we <b>reject H<sub>0</sub></b>: the data provide evidence that "+xl+" and "+fl+" are <b>statistically dependent</b>."
+      :"Since p = "+f(p,4)+" ≥ α = "+alpha+", we <b>fail to reject H<sub>0</sub></b>: the data are compatible with <b>independence</b> of "+xl+" and "+fl+".")+"</div>"+
+    "<p>The observed frequencies "+(rej?"deviate substantially":"are close")+" from those expected under independence, and the conditional distributions of "+fl+" "+(rej?"differ across":"are similar across")+" the categories of "+xl+" (compare the rows of table 3.3 with the marginal row). "+cell+" The strength of the association is "+eff+" (Cramér’s V = "+f(V,3)+").</p>"+
+    "<p><b>Conclusion.</b> "+(rej
+      ?"There is a statistical association between "+xl+" and "+fl+". This does not imply that "+xl+" causes "+fl+" (see section 7): confounders, reverse causality or selection could explain it."
+      :"There is no sufficient evidence of association. This is not proof of independence, especially with small samples, and in any case independence would not exclude a causal link masked by other factors.")+"</p>";
+  $("out").hidden=false;
+}
+
+$("data").value=exampleData();
+$("run").addEventListener("click",analyse);
+$("ex").addEventListener("click",function(){$("data").value=exampleData();$("hdr").checked=true;analyse();});
+analyse();
+})();
+</script>
+</body>
+</html>
