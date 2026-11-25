@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modes of Convergence, Conditional Probability and Bayesian Inference</title>
+<style>
+:root{--bg:#fafaf7;--fg:#1d1d1b;--mut:#666;--card:#fff;--bd:#ddd;--ac:#1a5fb4;--ac2:#c64600;--ac3:#26a269}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--fg:#e8e8e4;--mut:#9a9a9a;--card:#202024;--bd:#38383d;--ac:#6ea8ff;--ac2:#ff9d5c;--ac3:#5fd39a}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 Georgia,serif}
+main{max-width:860px;margin:auto;padding:24px 18px 60px}
+h1{font-size:1.9rem;line-height:1.25}h2{margin-top:2.4rem;border-bottom:2px solid var(--ac);padding-bottom:4px}
+h3{margin-top:1.6rem;color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin:16px 0}
+.f{font-family:"Cambria Math",Georgia,serif;text-align:center;font-size:1.1rem;margin:10px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.93rem;display:block;overflow-x:auto}
+td,th{border:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card)}
+canvas{width:100%;height:auto;background:var(--card);border:1px solid var(--bd);border-radius:8px}
+label{font:14px sans-serif;margin-right:12px;display:inline-block}
+button,select{font:14px sans-serif;padding:5px 10px;border-radius:6px;border:1px solid var(--bd);background:var(--card);color:var(--fg);cursor:pointer}
+input[type=range]{vertical-align:middle}
+.out{font:14px/1.5 sans-serif;color:var(--mut)}
+@media(max-width:600px){body{font-size:15px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Modes of Convergence in Probability Theory<br>and Bayesian Statistical Inference</h1>
+<p class="out">Homework – interactive version (all simulations run in your browser with plain JavaScript).</p>
+
+<h2>Part 1 – Modes of Convergence</h2>
+<p>Let X₁, X₂, … be random variables on the same probability space and X a random variable (possibly a constant). The four main modes differ in <em>what kind of closeness</em> between Xₙ and X they require.</p>
+
+<table>
+<tr><th>Mode</th><th>Definition</th><th>Meaning</th></tr>
+<tr><td><b>In probability</b> (Xₙ →ᵖ X)</td><td>∀ε&gt;0: P(|Xₙ−X|&gt;ε) → 0</td><td>The probability of a “large” deviation vanishes; for each n the deviation can still happen.</td></tr>
+<tr><td><b>Almost surely</b> (Xₙ →ᵃˢ X)</td><td>P(lim Xₙ = X) = 1</td><td>Along almost every single trajectory the sequence converges; deviations eventually stop occurring.</td></tr>
+<tr><td><b>Mean-square / L²</b> (Xₙ →ᴸ² X)</td><td>E[(Xₙ−X)²] → 0</td><td>Average squared error vanishes; requires finite second moments.</td></tr>
+<tr><td><b>In distribution</b> (Xₙ →ᵈ X)</td><td>Fₙ(x) → F(x) at every continuity point x of F</td><td>Only the laws converge; Xₙ and X need not even live on the same space.</td></tr>
+</table>
+
+<h3>Relationships</h3>
+<div class="f">a.s. ⟹ in probability ⟹ in distribution &nbsp;&nbsp; and &nbsp;&nbsp; L² ⟹ in probability</div>
+<ul>
+<li><b>L² ⟹ probability</b> by Chebyshev/Markov: P(|Xₙ−X|&gt;ε) ≤ E[(Xₙ−X)²]/ε².</li>
+<li><b>a.s. ⟹ probability</b> by dominated convergence of indicator functions. The converse fails: the “typewriter” sequence (indicators of intervals sweeping [0,1] with shrinking length) converges to 0 in probability and L² but not a.s.</li>
+<li><b>Probability ⟹ distribution</b>; the converse fails in general (Xₙ = −X for symmetric X has the same law but does not converge to X). It holds when the limit is a <em>constant</em>.</li>
+<li>L² and a.s. do not imply each other (a.s. needs a dominating bound, e.g. Xₙ = n·1{U&lt;1/n} → 0 a.s. but E[Xₙ²] = n → ∞).</li>
+<li>Partial converse: convergence in probability implies a.s. convergence along a subsequence.</li>
+</ul>
+
+<h3>Role in the Law of Large Numbers (LLN)</h3>
+<p>Let X̄ₙ = (X₁+…+Xₙ)/n with i.i.d. X_i, mean μ and variance σ².</p>
+<ul>
+<li><b>Weak LLN (WLLN)</b>: X̄ₙ →ᵖ μ. With finite variance the proof is one line: Var(X̄ₙ) = σ²/n, hence P(|X̄ₙ−μ|&gt;ε) ≤ σ²/(nε²) → 0. In fact this also shows <b>L² convergence</b>, since E[(X̄ₙ−μ)²] = σ²/n → 0.</li>
+<li><b>Strong LLN (SLLN)</b> (Kolmogorov): if E|X₁| &lt; ∞, then X̄ₙ →ᵃˢ μ. This is the statement about one single, long experiment: the running average of <em>that</em> sequence settles at μ. It is the theoretical justification of Monte&nbsp;Carlo simulation and of the frequentist interpretation of probability.</li>
+</ul>
+<p>Statistical meaning: convergence in probability of an estimator to the true parameter is exactly <b>consistency</b> (weak); a.s. convergence is strong consistency.</p>
+
+<h3>Role in the Central Limit Theorem (CLT)</h3>
+<p>The LLN says X̄ₙ collapses to the constant μ; the CLT describes the <em>shape of the fluctuations</em> around μ. If 0&lt;σ²&lt;∞:</p>
+<div class="f">√n (X̄ₙ − μ) / σ &nbsp;→ᵈ&nbsp; N(0,1)</div>
+<p>Only <b>convergence in distribution</b> can hold here: the standardized sums do not converge to any random variable in probability or a.s. (they keep oscillating), but their distribution functions converge. Related results using this mode: Slutsky’s theorem, the continuous mapping theorem, the delta method, and asymptotic confidence intervals and tests (e.g. Wald tests), which use the CLT together with consistency (→ᵖ) of variance estimators.</p>
+
+<h3>Why does √n appear?</h3>
+<ul>
+<li><b>Additivity of variance under independence.</b> For independent (or just uncorrelated) variables Var(ΣXᵢ) = ΣVar(Xᵢ) = nσ². Hence sd(Sₙ) = σ√n, and sd(X̄ₙ) = σ√n / n = σ/√n. Without independence there are covariance terms, Var(Sₙ) = nσ² + ΣΣ Cov(Xᵢ,Xⱼ), and the rate can change (e.g. perfectly correlated variables give variance n²σ², no averaging gain at all).</li>
+<li><b>Right scaling.</b> Sₙ − nμ has standard deviation of order √n: it grows (so dividing by n kills it: LLN) but slower than n. Multiplying X̄ₙ−μ by exactly √n keeps the variance constant at σ² and gives a non-degenerate limit (CLT). Multiplying by less gives 0, by more gives ∞.</li>
+<li><b>Statistical inference.</b> The standard error σ/√n implies that halving the error costs four times the data. Estimators are “√n-consistent”: θ̂ₙ − θ = O_p(1/√n), and √n(θ̂ₙ−θ) →ᵈ N(0, V) for MLEs with V = 1/I(θ) (Fisher information).</li>
+</ul>
+
+<h3>Simulation 1 – LLN</h3>
+<div class="card">
+<p class="out">Running mean of fair-die rolls (μ = 3.5) along 6 independent trajectories: each path converges (a.s. behaviour), while the table estimates P(|X̄ₙ−3.5|&gt;ε) over many repetitions (convergence in probability).</p>
+<label>ε <input type="range" id="eps" min="0.05" max="1" step="0.05" value="0.25"> <span id="epsv">0.25</span></label>
+<button id="lln-btn">Re-simulate</button>
+<canvas id="lln" width="800" height="320"></canvas>
+<div class="out" id="lln-out"></div>
+</div>
+
+<h3>Simulation 2 – CLT and the √n scaling</h3>
+<div class="card">
+<p class="out">Histogram of Zₙ = √n(X̄ₙ−μ)/σ over 4000 replications, compared with the N(0,1) density. Also shown: empirical sd(X̄ₙ) versus the theoretical σ/√n.</p>
+<label>Distribution
+<select id="dist"><option value="unif">Uniform(0,1)</option><option value="exp" selected>Exponential(1) – skewed</option><option value="bern">Bernoulli(0.1) – very skewed</option></select></label>
+<label>n <input type="range" id="nn" min="1" max="200" value="5"> <span id="nnv">5</span></label>
+<canvas id="clt" width="800" height="300"></canvas>
+<div class="out" id="clt-out"></div>
+</div>
+
+<h2>Part 2 – Conditional Probability, Bayes’ Theorem and Inference</h2>
+<h3>Conditional probability</h3>
+<p>For events A, B with P(B)&gt;0: <b>P(A|B) = P(A∩B)/P(B)</b>: the probability of A after restricting the sample space to B. Events are independent iff P(A|B) = P(A). The law of total probability P(B) = Σᵢ P(B|Aᵢ)P(Aᵢ) over a partition {Aᵢ} links marginal and conditional quantities. In statistics, conditional distributions underlie regression (Y|X), the likelihood (data conditional on the parameter), and sufficiency.</p>
+
+<h3>Bayes’ theorem and the three components</h3>
+<div class="f">p(θ | data) = p(data | θ) · p(θ) / p(data), &nbsp; p(data) = ∫ p(data|θ)p(θ)dθ</div>
+<ul>
+<li><b>Prior p(θ)</b>: beliefs about the parameter <em>before</em> seeing the data (expert knowledge, earlier studies, or weakly informative/“flat” choices).</li>
+<li><b>Likelihood p(data|θ)</b>: how probable the observed data are for each θ, viewed as a function of θ. It is <em>not</em> a probability distribution over θ.</li>
+<li><b>Posterior p(θ|data)</b>: updated beliefs, ∝ likelihood × prior. The denominator (marginal likelihood/evidence) is just a normalizing constant.</li>
+</ul>
+<p>The posterior of today is the prior of tomorrow: Bayesian updating is <b>sequential and coherent</b>, processing data in batches or all at once gives the same result. All inference (point estimates such as posterior mean/mode, credible intervals, predictive distributions, hypothesis comparison through Bayes factors) is derived from the posterior. Contrary to frequentist inference, one can say directly “P(θ∈[a,b] | data) = 0.95”.</p>
+
+<h3>Example 1 – Diagnostic test (discrete prior)</h3>
+<div class="card">
+<p class="out">Disease prevalence (prior), sensitivity P(+|D), specificity P(−|no D). Compute P(D|+).</p>
+<label>Prevalence <input type="range" id="prev" min="0.001" max="0.5" step="0.001" value="0.01"> <span id="prevv"></span></label><br>
+<label>Sensitivity <input type="range" id="sens" min="0.5" max="1" step="0.01" value="0.95"> <span id="sensv"></span></label>
+<label>Specificity <input type="range" id="spec" min="0.5" max="1" step="0.01" value="0.95"> <span id="specv"></span></label>
+<div class="out" id="dx-out" style="margin-top:8px"></div>
+</div>
+<p>Even with a good test, a low prior (rare disease) yields a modest posterior: ignoring the prior (the “base rate fallacy”) is a classic error and shows the influence of the prior on conclusions.</p>
+
+<h3>Example 2 – Beta–Binomial model (continuous prior)</h3>
+<p>Data: k successes in n Bernoulli(θ) trials. Likelihood ∝ θᵏ(1−θ)ⁿ⁻ᵏ. With prior θ ~ Beta(a,b) the posterior is conjugate: <b>Beta(a+k, b+n−k)</b>, with mean (a+k)/(a+b+n), a weighted average of prior mean a/(a+b) and sample proportion k/n; the weight on the data grows with n.</p>
+<div class="card">
+<label>Prior a <input type="range" id="pa" min="0.5" max="30" step="0.5" value="2"> <span id="pav"></span></label>
+<label>Prior b <input type="range" id="pb" min="0.5" max="30" step="0.5" value="2"> <span id="pbv"></span></label><br>
+<label>Trials n <input type="range" id="pn" min="0" max="200" value="10"> <span id="pnv"></span></label>
+<label>Successes k <input type="range" id="pk" min="0" max="200" value="7"> <span id="pkv"></span></label>
+<canvas id="bayes" width="800" height="300"></canvas>
+<div class="out" id="bayes-out"></div>
+</div>
+<p class="out">Try: (1) a=b=1 (flat prior): posterior ≈ likelihood. (2) a=b=25 (strong prior at 0.5) with few data: the prior dominates. (3) increase n with k/n fixed: posteriors from different priors merge (the likelihood wins).</p>
+
+<h3>Advantages and limitations</h3>
+<table>
+<tr><th>Advantages</th><th>Limitations</th></tr>
+<tr><td>Incorporates prior knowledge; works well with small samples.</td><td>Prior choice is subjective and can bias conclusions, especially with little data.</td></tr>
+<tr><td>Direct probability statements about parameters; natural handling of uncertainty and prediction.</td><td>Posterior often has no closed form: needs MCMC/variational methods (computational cost).</td></tr>
+<tr><td>Sequential updating; hierarchical modelling.</td><td>“Non-informative” priors are not unique and are not invariant under reparametrization; sensitivity analysis is needed.</td></tr>
+<tr><td>Bernstein–von Mises: with enough data posterior ≈ N(θ̂, 1/(nI(θ))) and the prior washes out, linking Bayesian and frequentist inference through the same √n rate.</td><td>Misspecified likelihood leads to misleading posteriors, as in any approach.</td></tr>
+</table>
+
+<p class="out" style="margin-top:2rem">Summary: LLN (→ᵖ, →ᵃˢ, →ᴸ²) tells where estimators go; the CLT (→ᵈ) tells how they fluctuate, at rate 1/√n thanks to additive variance under independence; Bayes’ theorem combines prior and likelihood into a posterior whose dependence on the prior fades at that same rate.</p>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function randn(){let u=0,v=0;while(!u)u=Math.random();v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function axes(c,x0,x1,y0,y1,pad){ // returns mapping fns and draws frame
+  const ctx=c.getContext('2d'),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  const X=x=>pad+(x-x0)/(x1-x0)*(W-2*pad), Y=y=>H-pad-(y-y0)/(y1-y0)*(H-2*pad);
+  ctx.strokeStyle=css('--bd');ctx.fillStyle=css('--mut');ctx.font='12px sans-serif';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad,pad/2);ctx.lineTo(pad,H-pad);ctx.lineTo(W-pad/2,H-pad);ctx.stroke();
+  return {ctx,X,Y,W,H,pad};
+}
+function line(a,xs,ys,color,w){const {ctx,X,Y}=a;ctx.strokeStyle=color;ctx.lineWidth=w||2;ctx.beginPath();
+  xs.forEach((x,i)=>i?ctx.lineTo(X(x),Y(ys[i])):ctx.moveTo(X(x),Y(ys[i])));ctx.stroke();}
+
+/* ---------- Simulation 1: LLN ---------- */
+function lln(){
+  const N=2000, eps=+$('eps').value; $('epsv').textContent=eps;
+  const a=axes($('lln'),0,N,1,6,40), {ctx}=a;
+  const cols=[css('--ac'),css('--ac2'),css('--ac3'),'#a347ba','#c0a000','#e01b24'];
+  const xs=Array.from({length:N},(_,i)=>i+1);
+  for(let p=0;p<6;p++){let s=0;const m=xs.map(i=>(s+=1+Math.floor(Math.random()*6))/i);line(a,xs,m,cols[p],1.3);}
+  line(a,[0,N],[3.5,3.5],css('--fg'),1);
+  ctx.fillStyle=css('--mut');ctx.fillText('μ = 3.5',N*0+45,a.Y(3.5)-5);ctx.fillText('n',a.W-20,a.H-10);ctx.fillText('running mean',45,22);
+  [1,3.5,6].forEach(v=>ctx.fillText(v,12,a.Y(v)+4));[0,1000,2000].forEach(v=>ctx.fillText(v,a.X(v)-8,a.H-22));
+  // estimate P(|mean-mu|>eps)
+  const R=1000, ns=[10,100,1000], rows=ns.map(n=>{let bad=0;
+    for(let r=0;r<R;r++){let s=0;for(let i=0;i<n;i++)s+=1+Math.floor(Math.random()*6);if(Math.abs(s/n-3.5)>eps)bad++;}
+    return `n=${n}: ${(bad/R).toFixed(3)} (Chebyshev bound ${Math.min(1,2.9167/(n*eps*eps)).toFixed(3)})`;});
+  $('lln-out').innerHTML='Estimated P(|X̄ₙ−3.5|&gt;'+eps+') from '+R+' repetitions → 0 as n grows:<br>'+rows.join('<br>');
+}
+$('lln-btn').onclick=lln;$('eps').oninput=lln;
+
+/* ---------- Simulation 2: CLT ---------- */
+const D={unif:{mu:.5,sd:Math.sqrt(1/12),gen:()=>Math.random()},
+  exp:{mu:1,sd:1,gen:()=>-Math.log(1-Math.random())},
+  bern:{mu:.1,sd:.3,gen:()=>Math.random()<.1?1:0}};
+function clt(){
+  const n=+$('nn').value;$('nnv').textContent=n;
+  const d=D[$('dist').value],M=4000,B=41,lo=-4,hi=4,h=(hi-lo)/B,cnt=new Array(B).fill(0);
+  let m1=0,m2=0;
+  for(let r=0;r<M;r++){let s=0;for(let i=0;i<n;i++)s+=d.gen();const xb=s/n;m1+=xb;m2+=xb*xb;
+    const z=Math.sqrt(n)*(xb-d.mu)/d.sd,b=Math.floor((z-lo)/h);if(b>=0&&b<B)cnt[b]++;}
+  const a=axes($('clt'),lo,hi,0,.6,40),{ctx,X,Y}=a;
+  ctx.fillStyle=css('--ac');ctx.globalAlpha=.55;
+  cnt.forEach((c,i)=>{const dens=c/(M*h);ctx.fillRect(X(lo+i*h),Y(dens),X(lo+h)-X(lo)-1,Y(0)-Y(dens));});
+  ctx.globalAlpha=1;
+  const gx=[],gy=[];for(let x=lo;x<=hi;x+=.05){gx.push(x);gy.push(Math.exp(-x*x/2)/Math.sqrt(2*Math.PI));}
+  line(a,gx,gy,css('--ac2'),2.5);
+  ctx.fillStyle=css('--mut');ctx.fillText('N(0,1) density (orange) vs histogram of Zₙ',50,20);
+  [-4,-2,0,2,4].forEach(v=>ctx.fillText(v,X(v)-4,a.H-22));
+  const mean=m1/M,sdE=Math.sqrt(m2/M-mean*mean);
+  $('clt-out').innerHTML=`n=${n}: empirical sd(X̄ₙ) = ${sdE.toFixed(4)} &nbsp;|&nbsp; theory σ/√n = ${(d.sd/Math.sqrt(n)).toFixed(4)} &nbsp;|&nbsp; √n·sd(X̄ₙ)/σ ≈ ${(sdE*Math.sqrt(n)/d.sd).toFixed(3)} (≈1: variances add)`;
+}
+$('nn').oninput=clt;$('dist').onchange=clt;
+
+/* ---------- Example 1: diagnostic test ---------- */
+function dx(){
+  const p=+$('prev').value,se=+$('sens').value,sp=+$('spec').value;
+  $('prevv').textContent=(p*100).toFixed(1)+'%';$('sensv').textContent=se;$('specv').textContent=sp;
+  const pPos=se*p+(1-sp)*(1-p),post=se*p/pPos,postNeg=(1-se)*p/(1-pPos);
+  $('dx-out').innerHTML=`P(+) = sens·prev + (1−spec)(1−prev) = ${pPos.toFixed(4)}<br>
+  <b>P(D | +) = ${post.toFixed(4)}</b> (prior ${p.toFixed(3)} → posterior; likelihood ratio = ${(se/(1-sp)).toFixed(1)})<br>
+  P(D | −) = ${postNeg.toFixed(5)}`;
+}
+['prev','sens','spec'].forEach(i=>$(i).oninput=dx);
+
+/* ---------- Example 2: Beta-Binomial ---------- */
+function betaPdf(a,b,xs){const v=xs.map(x=>Math.pow(x,a-1)*Math.pow(1-x,b-1)),dx=xs[1]-xs[0],s=v.reduce((p,c)=>p+c,0)*dx;return v.map(t=>t/s);}
+function bayes(){
+  const a=+$('pa').value,b=+$('pb').value,n=+$('pn').value;
+  $('pk').max=n;let k=Math.min(+$('pk').value,n);$('pk').value=k;
+  $('pav').textContent=a;$('pbv').textContent=b;$('pnv').textContent=n;$('pkv').textContent=k;
+  const G=400,xs=Array.from({length:G},(_,i)=>(i+.5)/G);
+  const prior=betaPdf(a,b,xs),lik=betaPdf(k+1,n-k+1,xs),post=betaPdf(a+k,b+n-k,xs);
+  const ymax=Math.min(40,Math.max(...prior,...lik,...post))*1.1;
+  const A=axes($('bayes'),0,1,0,ymax,40);
+  line(A,xs,prior.map(v=>Math.min(v,ymax)),css('--ac'),2);
+  line(A,xs,lik.map(v=>Math.min(v,ymax)),css('--ac3'),2);
+  line(A,xs,post.map(v=>Math.min(v,ymax)),css('--ac2'),3);
+  const ctx=A.ctx;ctx.fillStyle=css('--ac');ctx.fillText('prior',60,20);ctx.fillStyle=css('--ac3');ctx.fillText('likelihood (normalized)',110,20);
+  ctx.fillStyle=css('--ac2');ctx.fillText('posterior',270,20);ctx.fillStyle=css('--mut');[0,.5,1].forEach(v=>ctx.fillText(v,A.X(v)-6,A.H-22));ctx.fillText('θ',A.W-20,A.H-10);
+  // 95% credible interval from grid
+  const dxg=1/G;let c=0,l=null,u=null;post.forEach((v,i)=>{c+=v*dxg;if(l===null&&c>=.025)l=xs[i];if(u===null&&c>=.975)u=xs[i];});
+  const pm=(a+k)/(a+b+n),pr=a/(a+b),w=n/(a+b+n);
+  $('bayes-out').innerHTML=`Posterior = Beta(${a+k}, ${b+n-k}); mean = ${pm.toFixed(3)}; 95% credible interval ≈ [${l.toFixed(3)}, ${u.toFixed(3)}]<br>
+  Prior mean ${pr.toFixed(3)}, sample proportion ${n?(k/n).toFixed(3):'–'}; weight on data = n/(a+b+n) = ${w.toFixed(2)}`;
+}
+['pa','pb','pn','pk'].forEach(i=>$(i).oninput=bayes);
+
+window.addEventListener('load',()=>{lln();clt();dx();bayes();});
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{lln();clt();bayes();});
+</script>
+</body>
+</html>
